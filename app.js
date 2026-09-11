@@ -44,7 +44,21 @@ function navLinks(lat,lng,name,addr){
 /* 打开详情时地图同步定位到店铺并自动缩放到街区级，marker 偏上避开底部弹窗 */
 function flyToShop(lat,lng){
   if(lat==null||lng==null||isNaN(lat)||isNaN(lng)||!map)return;
+  /* 已在目标附近则不重复移动 */
+  const cz=map.getZoom();
+  const c=map.getCenter();
+  if(cz>=14&&cz<=16&&Math.abs(c.lat-lat)<0.01&&Math.abs(c.lng-lng)<0.01)return;
   map.flyTo([lat+0.0022,lng], 15, {duration:0.7});
+  /* 兜底：部分环境（后台标签页 rAF 暂停）flyTo 动画不执行，1.4s 后强制落位 */
+  setTimeout(()=>{
+    try{
+      const z=map.getZoom();
+      const cc=map.getCenter();
+      if(z!==15||Math.abs(cc.lat-lat)>0.005||Math.abs(cc.lng-lng)>0.005){
+        map.setView([lat+0.0022,lng],15,{animate:false});
+      }
+    }catch(e){}
+  },1400);
 }
 
 /* ---------- 数据 ---------- */
