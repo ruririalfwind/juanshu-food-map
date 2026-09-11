@@ -16,18 +16,35 @@ const AMAP_SAT    = 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function imgProxy(u){if(!u)return '';if(u.indexOf('media/')===0||u.indexOf('./')===0||u.indexOf('/media/')===0)return u;if(u.indexOf('sinaimg')>=0)return '/img?u='+encodeURIComponent(u);return u;}
 
-/* 导航跳转：高德/百度/苹果地图（手机端唤起 App） */
+function isMobile(){return /Android|iPhone|iPad|iPod|Windows Phone|Mobile/i.test(navigator.userAgent);}
+
+/* 导航跳转：手机端直接唤起地图 App（高德/百度/苹果），电脑端回退网页 */
 function navLinks(lat,lng,name,addr){
   if(lat==null||lng==null||isNaN(lat)||isNaN(lng))return '';
   const n=encodeURIComponent(name||'');
   const a=encodeURIComponent(addr||name||'');
   const to=lng+','+lat;
+  const mob=isMobile();
+  /* 高德：uri.amap.com + callnative=1 → 手机端直接唤起高德 App */
+  const gd='https://uri.amap.com/navigation?to='+to+','+a+'&mode=car&coordinate=gaode'+(mob?'&callnative=1':'');
+  /* 百度：手机端 baidumap scheme 调起 App，电脑端网页 */
+  const bd=mob
+    ?'baidumap://map/direction?destination=latlng:'+lat+','+lng+'%7Cname:'+n+'&coord_type=gcj02&mode=driving&src=juanshu'
+    :'https://api.map.baidu.com/marker?location='+lat+','+lng+'&title='+n+'&output=html&coord_type=gcj02&src=webapp';
+  /* 苹果：maps.apple.com 在 iOS 调起 Apple 地图 App */
+  const ap='http://maps.apple.com/?daddr='+lat+','+lng+'&q='+n;
   return '<div class="navtitle">📍 定位 · '+(addr?esc(addr):'区域示意')+'</div>'
     +'<div class="navbtns">'
-    +'<a class="navb gd" href="https://uri.amap.com/navigation?to='+to+','+a+'&mode=car&coordinate=gaode" target="_blank" rel="noopener">🧭 高德导航</a>'
-    +'<a class="navb bd" href="https://api.map.baidu.com/marker?location='+lat+','+lng+'&title='+n+'&output=html&coord_type=gcj02&src=webapp" target="_blank" rel="noopener">🧭 百度地图</a>'
-    +'<a class="navb ap" href="http://maps.apple.com/?ll='+lat+','+lng+'&q='+n+'" target="_blank" rel="noopener">🧭 苹果地图</a>'
+    +'<a class="navb gd" href="'+gd+'" target="_blank" rel="noopener">🧭 高德导航</a>'
+    +'<a class="navb bd" href="'+bd+'" target="_blank" rel="noopener">🧭 百度地图</a>'
+    +'<a class="navb ap" href="'+ap+'" target="_blank" rel="noopener">🧭 苹果地图</a>'
     +'</div>';
+}
+
+/* 打开详情时地图同步定位到店铺并自动缩放到街区级，marker 偏上避开底部弹窗 */
+function flyToShop(lat,lng){
+  if(lat==null||lng==null||isNaN(lat)||isNaN(lng)||!map)return;
+  map.flyTo([lat+0.0022,lng], 15, {duration:0.7});
 }
 
 /* ---------- 数据 ---------- */
@@ -41,6 +58,8 @@ function filtered(){
     return arr;
   }
   let arr=(DATA.spots||[]).slice();
+  /* 去重（同一条博文只显示一次） */
+  const _seen=new Set(); arr=arr.filter(s=>{if(_seen.has(s.id))return false;_seen.add(s.id);return true;});
   if(curType!=='全部') arr=arr.filter(s=>s.type===curType);
   if(curQ){const q=curQ.toLowerCase();
     arr=arr.filter(s=>[s.food,s.place,s.region,s.type,s.text,s.shopName,s.tags&&s.tags.join(' ')].join(' ').toLowerCase().includes(q));}
@@ -139,6 +158,7 @@ function openDetail(id){
   if(id.indexOf('s:')===0){
     const sh=(DATA.shops||[]).find(x=>('s:'+x.name)===id); if(!sh)return;
     curId=id;
+    flyToShop(sh.lat,sh.lng);
     Object.keys(markers).forEach(k=>{const p=markers[k].getElement&&markers[k].getElement();if(p&&p.querySelector('.pin'))p.querySelector('.pin').classList.toggle('pop',k===id);});
     document.querySelectorAll('.card').forEach(el=>el.classList.toggle('cur',el.dataset.id===id));
     const refs=sh.refs||[];
@@ -175,6 +195,7 @@ function openDetail(id){
   }
   const s=(DATA.spots||[]).find(x=>x.id===id); if(!s)return;
   curId=id;
+  flyToShop(s.lat,s.lng);
   Object.keys(markers).forEach(k=>{const p=markers[k].getElement&&markers[k].getElement();if(p&&p.querySelector('.pin'))p.querySelector('.pin').classList.remove('pop');});
   document.querySelectorAll('.card').forEach(el=>el.classList.toggle('cur',el.dataset.id===id));
   document.getElementById('m-food').textContent=s.shopName?s.shopName:s.food;
