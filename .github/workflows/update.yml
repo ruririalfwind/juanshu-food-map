@@ -1,0 +1,46 @@
+name: 眷属美食地图自动更新
+
+on:
+  schedule:
+    - cron: '30 2 * * 0'   # 每周日 10:30（北京时间）
+  workflow_dispatch:        # 仓库 Actions 页面可手动触发
+
+permissions:
+  contents: write
+
+concurrency:
+  group: foodmap-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 增量抓取新美食微博（只爬未爬过的）
+        env:
+          WEIBO_COOKIE: ${{ secrets.WEIBO_COOKIE }}
+        run: python update_gh.py
+
+      - name: 提交更新
+        run: |
+          git config user.name "juanshu-bot"
+          git config user.email "juanshu-bot@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 自动更新眷属美食地图 $(date +%Y-%m-%d)"
+            git push
+          else
+            echo "无更新，跳过提交"
+          fi
