@@ -65,7 +65,3 @@ if __name__ == '__main__':
     with open(os.path.join(BASE, 'foods.json'), 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     print(f'聚合完成：{len(data["shops"])} 家店铺')
-multi = [sh for sh in shops if sh['repurchaseCount'] > 1]
-print(f'复购≥2 的店铺：{len(multi)} 家')
-for sh in sorted(multi, key=lambda x: -x['repurchaseCount']):
-    print(f"- {sh['name']} [{sh['city']}] 复购x{sh['repurchaseCount']}")
