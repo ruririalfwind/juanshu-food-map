@@ -249,6 +249,7 @@ function switchBase(k){
 }
 
 /* ---------- 动态加载 + 状态 + 刷新 ---------- */
+const IS_STATIC = (location.hostname.indexOf('github.io') >= 0) || (location.protocol === 'file:');
 function boot(d){if(d&&((d.spots&&d.spots.length)||(d.shops&&d.shops.length))){DATA=d;init();}else init();}
 async function loadData(){
   try{
@@ -281,6 +282,13 @@ function refreshStatus(){
   }).catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',()=>{
+  /* 静态托管模式（GitHub Pages）：由 Actions 自动更新，隐藏本地维护控件 */
+  if(IS_STATIC){
+    const br=document.getElementById('btn-refresh');
+    if(br){br.textContent='⚙ 自动更新中';br.disabled=true;br.title='线上版数据由 GitHub Actions 每周自动更新';}
+    const ut=document.getElementById('up-time');
+    if(ut)ut.textContent='数据由 GitHub Actions 每周自动更新';
+  }
   refreshStatus();
   const btn=document.getElementById('btn-refresh');
   if(btn)btn.onclick=()=>{
@@ -312,6 +320,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('lb-sat').onclick=()=>switchBase('sat');
   /* 手动录入 */
   document.getElementById('note-save').onclick=async()=>{
+    if(IS_STATIC){
+      const msg=document.getElementById('note-msg');
+      if(msg)msg.textContent='线上版仅展示，店名维护请使用本地版（start_server.bat）';
+      return;
+    }
     const mid=document.getElementById('note-id').value;
     const name=document.getElementById('note-name').value.trim();
     const addr=document.getElementById('note-addr').value.trim();
