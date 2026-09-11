@@ -43,19 +43,22 @@ function navLinks(lat,lng,name,addr){
 
 /* 打开详情时地图同步定位到店铺并自动缩放到街区级，marker 偏上避开底部弹窗 */
 function flyToShop(lat,lng){
-  if(lat==null||lng==null||isNaN(lat)||isNaN(lng)||!map)return;
+  if(lat==null||lng==null||isNaN(lat)||isNaN(lng))return;
+  /* 用 window 权威引用（防止脚本重复执行导致的旧实例闭包） */
+  const m=window.__MAP__||map;
+  if(!m)return;
   /* 已在目标附近则不重复移动 */
-  const cz=map.getZoom();
-  const c=map.getCenter();
+  const cz=m.getZoom();
+  const c=m.getCenter();
   if(cz>=14&&cz<=16&&Math.abs(c.lat-lat)<0.01&&Math.abs(c.lng-lng)<0.01)return;
-  map.flyTo([lat+0.0022,lng], 15, {duration:0.7});
+  m.flyTo([lat+0.0022,lng], 15, {duration:0.7});
   /* 兜底：部分环境（后台标签页 rAF 暂停）flyTo 动画不执行，1.4s 后强制落位 */
   setTimeout(()=>{
     try{
-      const z=map.getZoom();
-      const cc=map.getCenter();
+      const z=m.getZoom();
+      const cc=m.getCenter();
       if(z!==15||Math.abs(cc.lat-lat)>0.005||Math.abs(cc.lng-lng)>0.005){
-        map.setView([lat+0.0022,lng],15,{animate:false});
+        m.setView([lat+0.0022,lng],15,{animate:false});
       }
     }catch(e){}
   },1400);
@@ -85,8 +88,11 @@ function init(){
   const c=DATA.meta.mapCenter||{lat:23.1291,lng:113.2644,zoom:11};
   if(!map){
     map=L.map('map',{zoomControl:true,attributionControl:true}).setView([c.lat,c.lng],c.zoom||11);
+    window.__MAP__=map;
     streetLayer=L.tileLayer(AMAP_STREET,{subdomains:['1','2','3','4'],maxZoom:18,attribution:'© 高德地图 © 微博@夜用型眷属'}).addTo(map);
     satLayer=L.tileLayer(AMAP_SAT,{subdomains:['1','2','3','4'],maxZoom:18});
+  }else{
+    window.__MAP__=map;
   }
   /* markers：店铺点（有坐标的） */
   (DATA.shops||[]).forEach(sh=>{
